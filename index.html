@@ -496,6 +496,55 @@
             }
         }
 
+        /* Botões de ações */
+        .acoes-container {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .btn-acao {
+            background: linear-gradient(135deg, var(--azul-forte) 0%, var(--azul-médio) 100%);
+            border: 2px solid var(--azul-forte);
+            border-radius: 12px;
+            padding: 12px 24px;
+            font-size: 13px;
+            font-weight: 700;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            box-shadow: 0 6px 15px var(--sombra-forte);
+            font-family: inherit;
+        }
+
+        .btn-acao:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px var(--sombra-forte);
+            border-color: var(--azul-escuro);
+        }
+
+        .btn-acao:active {
+            transform: translateY(-1px);
+        }
+
+        .btn-acao-secundario {
+            background: linear-gradient(135deg, var(--azul-médio) 0%, var(--azul-claro) 100%);
+            color: var(--azul-escuro);
+            border-color: var(--azul-médio);
+        }
+
+        .btn-acao-secundario:hover {
+            border-color: var(--azul-forte);
+        }
+
+        #inputCarregarFicha {
+            display: none;
+        }
+
         /* Animação suave de entrada */
         @keyframes fadeInUp {
             from {
@@ -632,10 +681,170 @@
             <textarea class="anotacoes-area" placeholder="Use este espaço para suas notas, histórico e observações sobre o personagem..."></textarea>
         </section>
 
+        <!-- Ações -->
+        <div class="acoes-container">
+            <button class="btn-acao" onclick="salvarFicha()">💾 Salvar Ficha (JSON)</button>
+            <button class="btn-acao btn-acao-secundario" onclick="carregarFicha()">📂 Carregar Ficha (JSON)</button>
+            <button class="btn-acao btn-acao-secundario" onclick="limparFicha()">🗑️ Limpar Ficha</button>
+        </div>
+
+        <!-- Input oculto para carregar arquivo -->
+        <input type="file" id="inputCarregarFicha" accept=".json" />
+
         <!-- Footer -->
         <div class="footer">
             ✦ Uma ficha elegante para suas aventuras em Altaris ✦
         </div>
     </div>
+
+    <script>
+        // ===== FUNÇÃO: SALVAR FICHA EM JSON =====
+        function salvarFicha() {
+            // Coletar todos os dados da ficha
+            const inputs = document.querySelectorAll('.campo-input');
+            const atributos = document.querySelectorAll('.atributo-input');
+            const conhecimentos = document.querySelectorAll('.conhecimento-item');
+            const habilidades = document.querySelectorAll('.habilidade-card');
+            const equipamentos = document.querySelectorAll('.equipamento-item');
+            const anotacoes = document.querySelector('.anotacoes-area');
+
+            // Montar objeto com os dados
+            const ficha = {
+                versao: '1.0',
+                dataSalva: new Date().toLocaleString('pt-BR'),
+                informacoesBasicas: {
+                    nome: inputs[0]?.value || '',
+                    especie: inputs[1]?.value || '',
+                    classe: inputs[2]?.value || '',
+                    origem: inputs[3]?.value || '',
+                    foco: inputs[4]?.value || ''
+                },
+                atributos: {
+                    pontosDeVida: atributos[0]?.value || '0',
+                    pontosDeEnergia: atributos[1]?.value || '0'
+                },
+                conhecimentos: Array.from(conhecimentos).map(k => k.textContent),
+                habilidades: Array.from(habilidades).map(h => ({
+                    titulo: h.querySelector('.habilidade-titulo')?.textContent || '',
+                    descricao: h.querySelector('.habilidade-descricao')?.value || ''
+                })),
+                equipamentos: Array.from(equipamentos).map(e => e.textContent),
+                anotacoes: anotacoes?.value || ''
+            };
+
+            // Converter para JSON
+            const jsonString = JSON.stringify(ficha, null, 2);
+
+            // Criar blob e fazer download
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `altaris_${ficha.informacoesBasicas.nome || 'personagem'}_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            alert('✅ Ficha salva com sucesso!');
+        }
+
+        // ===== FUNÇÃO: CARREGAR FICHA DE JSON =====
+        function carregarFicha() {
+            const input = document.getElementById('inputCarregarFicha');
+            input.click();
+        }
+
+        // ===== EVENTO: QUANDO ARQUIVO FOR SELECIONADO =====
+        document.getElementById('inputCarregarFicha').addEventListener('change', function(e) {
+            const arquivo = e.target.files[0];
+            if (!arquivo) return;
+
+            const leitor = new FileReader();
+            leitor.onload = function(evento) {
+                try {
+                    const ficha = JSON.parse(evento.target.result);
+                    carregarDadosFicha(ficha);
+                    alert('✅ Ficha carregada com sucesso!');
+                } catch (erro) {
+                    alert('❌ Erro ao carregar arquivo. Verifique se é um JSON válido.');
+                    console.error(erro);
+                }
+            };
+            leitor.readAsText(arquivo);
+        });
+
+        // ===== FUNÇÃO: PREENCHER FICHA COM DADOS =====
+        function carregarDadosFicha(ficha) {
+            const inputs = document.querySelectorAll('.campo-input');
+            const atributos = document.querySelectorAll('.atributo-input');
+            const conhecimentos = document.querySelectorAll('.conhecimento-item');
+            const habilidades = document.querySelectorAll('.habilidade-card');
+            const equipamentos = document.querySelectorAll('.equipamento-item');
+            const anotacoes = document.querySelector('.anotacoes-area');
+
+            // Carregar informações básicas
+            if (ficha.informacoesBasicas) {
+                inputs[0].value = ficha.informacoesBasicas.nome || '';
+                inputs[1].value = ficha.informacoesBasicas.especie || '';
+                inputs[2].value = ficha.informacoesBasicas.classe || '';
+                inputs[3].value = ficha.informacoesBasicas.origem || '';
+                inputs[4].value = ficha.informacoesBasicas.foco || '';
+            }
+
+            // Carregar atributos
+            if (ficha.atributos) {
+                atributos[0].value = ficha.atributos.pontosDeVida || '0';
+                atributos[1].value = ficha.atributos.pontosDeEnergia || '0';
+            }
+
+            // Carregar conhecimentos
+            if (ficha.conhecimentos) {
+                ficha.conhecimentos.forEach((conhecimento, index) => {
+                    if (conhecimentos[index]) {
+                        conhecimentos[index].textContent = conhecimento;
+                    }
+                });
+            }
+
+            // Carregar habilidades
+            if (ficha.habilidades) {
+                ficha.habilidades.forEach((habilidade, index) => {
+                    if (habilidades[index]) {
+                        habilidades[index].querySelector('.habilidade-titulo').textContent = habilidade.titulo;
+                        habilidades[index].querySelector('.habilidade-descricao').value = habilidade.descricao;
+                    }
+                });
+            }
+
+            // Carregar equipamentos
+            if (ficha.equipamentos) {
+                ficha.equipamentos.forEach((equipamento, index) => {
+                    if (equipamentos[index]) {
+                        equipamentos[index].textContent = equipamento;
+                    }
+                });
+            }
+
+            // Carregar anotações
+            if (ficha.anotacoes) {
+                anotacoes.value = ficha.anotacoes;
+            }
+        }
+
+        // ===== FUNÇÃO: LIMPAR FICHA =====
+        function limparFicha() {
+            if (confirm('⚠️ Tem certeza que deseja limpar toda a ficha? Esta ação não pode ser desfeita.')) {
+                document.querySelectorAll('.campo-input').forEach(input => input.value = '');
+                document.querySelectorAll('.atributo-input').forEach(input => input.value = '');
+                document.querySelectorAll('.conhecimento-item').forEach(item => item.textContent = '');
+                document.querySelectorAll('.habilidade-titulo').forEach(titulo => titulo.textContent = 'Habilidade');
+                document.querySelectorAll('.habilidade-descricao').forEach(desc => desc.value = '');
+                document.querySelectorAll('.equipamento-item').forEach(item => item.textContent = '');
+                document.querySelector('.anotacoes-area').value = '';
+                alert('🗑️ Ficha limpa com sucesso!');
+            }
+        }
+    </script>
 </body>
 </html>
